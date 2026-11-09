@@ -1,0 +1,33 @@
+display_name: 解决方案 / 产品推介
+description: 向潜在客户或合作方介绍解决方案、产品或平台，让对方理解能解决什么问题、怎么解决、有什么案例和价值，促成合作
+principle: 以“客户的问题”为起点：先讲行业或客户面临的痛点与需求，再讲方案总体思路与架构，然后按核心能力（产品模块）逐项讲能解决什么问题、怎么做，接着讲典型案例与应用成效、带来的价值，最后讲合作方式与服务保障。每页回答“对客户有什么用”。
+default_duration_min: 20
+density: standard
+minutes_per_page: 1.5
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 谢谢！期待合作
+title_style: 从客户角度写的结论式标题，如"一张图统管全省视频与无人机资源，预警线索当天闭环"
+focus_checklist:
+  - 行业或客户面临的痛点与需求
+  - 方案总体思路与架构
+  - 核心能力或产品模块：解决什么问题、怎么做
+  - 技术特点与优势（仅限材料写明的）
+  - 典型案例与应用成效（数据）
+  - 带来的价值与收益
+  - 合作方式、实施与服务保障
+special_rules:
+  - 效果、收益、案例数据只能使用材料中写明的，不得编造客户名称和数字
+  - 不使用“最”“第一”“唯一”“国内领先”等绝对化用语，除非材料明确写明并有依据
+  - 每个核心能力都要对应到前面提出的痛点，不讲与客户无关的技术细节
+confirm_page: false
+skeleton_by: 核心能力              # 方案的核心能力或产品模块
+shell:
+  before:
+    - {module: 痛点与需求, covers: 行业背景、客户面临的问题与需求, required: true, min_pages: 1}
+    - {module: 方案总览, covers: 方案总体思路、总体架构、能力全景, optional: true}
+  after:
+    - {module: 典型案例, covers: 典型客户案例、应用场景与成效数据, optional: true}
+    - {module: 价值与收益, covers: 带来的效率提升、成本节约、管理价值, optional: true}
+    - {module: 合作与服务, covers: 合作方式、实施路径、服务与运维保障, optional: true}
+baseline_questions: [能解决我们的什么问题, 有没有成功案例和实际效果, 怎么合作落地]

@@ -1,0 +1,147 @@
+# ppt-builder 配置
+# 流程：ingest → understand（通读理解）→ plan（内容规划）→ write（逐页写作）→ review（编辑审查+修订）→ check（核验）→ export
+# 所有模型调用参数都在这里；换模型/换供应商（任何 OpenAI 兼容接口）只需改本文件。
+
+llm:
+  provider: deepseek              # deepseek | mock（mock 为离线模拟，仅用于测试流程，不产生真实内容）
+  base_url: https://api.deepseek.com
+  api_key_env: DEEPSEEK_API       # 从环境变量读取，绝不写入文件或日志（0.7.0-dev24 起改名；旧名 DEEPSEEK_API_KEY 仍兼容）
+  timeout_s: 900                  # 通读全文 + 深度思考可能需要数分钟
+  max_http_retries: 4
+  max_semantic_retries: 2         # 输出不合规时带问题清单重试的次数
+  max_workers: 4
+
+  # DeepSeek V4 系列：上下文 1M token，最大输出 384K；思考内容计入输出额度，思考类调用要给足 max_tokens
+  # thinking: enabled/disabled；reasoning_effort: high/max（及 low/medium，以官方文档为准）
+  profiles:
+    deep:                         # 通读理解、内容规划：决定成稿质量上限，深度思考（0.7.0-dev26 起全部用 Flash）
+      model: deepseek-flash
+      thinking: enabled
+      reasoning_effort: high
+      temperature: null
+      max_tokens: 65536
+      json_mode: false
+    review:                       # 编辑审查：专家视角，需要思考
+      model: deepseek-flash
+      thinking: enabled
+      reasoning_effort: high
+      temperature: null
+      max_tokens: 49152
+      json_mode: false
+    write:                        # 逐页写作：材料已给定，重在准确凝练
+      model: deepseek-flash
+      thinking: disabled
+      temperature: 0.3
+      max_tokens: 8192
+      json_mode: true
+    verify:                       # 标题核验
+      model: deepseek-flash
+      thinking: enabled
+      reasoning_effort: high
+      temperature: null
+      max_tokens: 16384
+      json_mode: false
+
+  tasks:
+    understand: deep
+    understand_chapter: deep
+    understand_merge: deep
+    plan: deep
+    write_page: write
+    review: review
+    entail: verify
+    eval_match: write
+    ping: write
+    frame: deep                   # 大纲骨架与追问清单（0.6）：决定结构，用深度思考
+    frame_verify: verify          # 逐题核对原文能否回答（看原文，不看摘要）
+    plan_outline: deep            # 定章（0.6 三步规划 3a）：每章页数、章名、问题分配
+    plan_chapter: deep            # 按章展开到页（3b，各章并行）
+    design_deck: verify           # 整套版式规划：需要通盘考虑，开思考
+    design_page: write            # 逐页填槽：压缩短语
+    speech: verify                # 讲稿（0.6）：版式定稿后对着最终屏上文字写；开思考，控制篇幅更准
+    fix_claim: write              # 0.7：按原文修正核验发现的问题文字
+    page_edit: write              # 0.7：成品确认时按用户意见改一页内容
+
+  pricing:                        # 可选：每百万 token 价格（元），用于日志估算成本
+    deepseek-flash: {input: null, output: null}
+    deepseek-v4-pro: {input: null, output: null}   # 0.7.0-dev26 起默认不用；想换回 Pro，把上面 deep / review 的 model 改成 deepseek-v4-pro
+
+ingest:
+  chunk_chars: 2500               # 仅用于超长文档分章理解时的兜底切分
+  context_blocks: 1
+  max_rows_per_sheet: 300
+  min_chars_per_page: 20
+  scanned_ratio_fail: 0.5
+  precheck_low_text: 0.15        # 输入预检：无文字页（扫描/整页图片）占比达到此值时在大纲确认提醒
+  precheck_min_chars: 2000       # 输入预检：原文合计少于此字数时提醒内容偏少
+
+understand:
+  max_single_chars: 300000        # 全文字数不超过该值时一次读完全文；超过则分章理解后汇总
+  chapter_max_chars: 120000       # 分章模式下每次调用的最大字数
+
+plan:
+  mode: staged                    # staged：0.6 三步规划（骨架 → 定章 → 按章展开 → 整合）；single：旧版一次规划
+  chapter_text_chars: 50000       # 按章展开时给模型的本章原文上限（超出按小节篇幅比例摘取）
+  synthesis_text_chars: 15000     # 归纳章（重难点/亮点/保障）在全文检索的依据上限
+  min_minutes_per_page: 1.0       # 用于计算内容页上限
+  max_minutes_per_page: 2.0       # 用于计算内容页下限
+  duration_tolerance: 0.1
+  # 内容密度（0.5）：standard 讲解型（每页约 1.5 分钟、要点 2—5 条）；
+  # dense 评审型（对标手工标杆：20 分钟约 25 个内容页，每页要点 + 屏上细节）。场景可设默认，brief 的 density 优先
+  densities:
+    standard: {minutes_per_page: null, min_minutes_per_page: 1.0, max_minutes_per_page: 2.0, max_bullets: 5, max_facts: 0,
+               allocation_check: false, coverage_check: false}
+    dense: {minutes_per_page: 0.75, min_minutes_per_page: 0.55, max_minutes_per_page: 1.1, max_bullets: 6, max_facts: 8,
+            allocation_check: true, coverage_check: true}
+  allocation_min_share: 0.15      # 占正文 15% 以上的章节参与页数分配检查
+  allocation_factor: 0.5          # 至少分到 份额 × 页数 × 0.5 页
+  coverage_min_share: 0.015       # 占正文 1.5% 以上的三级章节须被引用或给出取舍理由
+
+write:
+  max_source_chars: 24000         # 每页提供给模型的原文上限（超出时按章节顺序截断并记录）
+  max_title_chars: 32
+  max_bullets: 5
+  min_bullets: 2
+  max_bullet_chars: 45
+  notes_min_chars: 80
+  notes_max_chars: 400
+  notes_chars_per_minute: 270     # 讲稿字数按本页时长计算（评审汇报语速约每分钟 250—290 字）
+  max_fact_chars: 34              # 屏上细节（facts）每条字数上限
+
+review:
+  revise: true                    # 对审查发现问题的页面带意见重写一轮
+  revise_severities: [high, medium]
+  final_pass: true                # 修订后再审一次
+  dup_threshold: 0.6              # 跨页疑似重复要点的相似度阈值（交给审查判断）
+  max_revise_rounds: 2            # 复审仍有页面级 high 问题时最多再修订到第 2 轮（每多一轮约多 2 分钟）
+
+check:
+  entail: titles                  # none | titles | all：对哪些内容做模型蕴含核验（标题是归纳，最需要核）
+  votes: 1
+  entail_extra_blocks: 8           # 核验标题时，额外提供全文中与标题最相关的段落数（减少"别的章节明明有"的误判）
+  auto_decisions: true            # 0.7：核验与终审问题按默认修改意见自动处理（改写/删除），不再停在检查点 2；处理不了的写入 待核实清单.md
+
+visual:
+  enabled: true                   # false 时只输出内容稿（07_export），不生成 PPT
+  theme: blue                     # 色调：blue 湛蓝（默认）/ teal 青碧 / red 中国红 / slate 墨蓝 / green 松绿 / purple 黛紫 / amber 琥珀（写中文名也可以）
+  section_pages: true             # 每章前加章节过渡页
+  banner: false                   # 每页底部的结论横幅：false 不放（默认，结论在标题下的导语里，内容区更大）；true 恢复
+  section_style: hero             # 过渡页样式：hero 整页蓝底大号章号（默认）；toc 目录式（全部章节、当前章高亮）
+  preview: true                   # 本机有 LibreOffice 时生成 preview.pdf 与缩略总览图
+  geom_check: true                # 成品几何质检（字号过小、文字互相压住），只提示、不改动，结果进《注意事项》
+  number_check: true              # 数字一致性核对（合计与分项、总投资/建设周期跨页一致），只提示、不改动
+  cover_fields: [建设单位, 承建单位, 日期]   # 封面落款项：优先 brief.json 的 cover_fields，其次原文封面，都没有时显示占位
+  cover_placeholder: （待补充）
+  closing_head: 汇报完毕
+
+lexicon:
+  overstatement: [显著, 大幅, 极大, 全面, 彻底, 首次, 首创, 领先, 国际领先, 国内领先, 唯一, 完全, 根本, 绝对, 革命性, 颠覆, 最优, 最佳, 业界一流, 零风险, 100%, 必将, 一定, 确保]
+  hedges: [预计, 计划, 拟, 约, 大约, 左右, 初步, 有望, 可能, 力争, 争取, 目标, 暂定, 估算, 预估]
+
+output:
+  keep_process_files: false       # 成品确认后是否保留 _过程文件/（默认 false：清理掉，只留成果 PPT 和《注意事项.md》；排查问题时改成 true）
+
+logging:
+  save_full_messages: true
+  save_reasoning: true
+  console_level: INFO

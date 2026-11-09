@@ -1,0 +1,45 @@
+{
+ "type": "object",
+ "properties": {
+  "matches": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "key": {
+      "type": "string"
+     },
+     "coverage": {
+      "type": "string",
+      "enum": [
+       "full",
+       "partial",
+       "none"
+      ]
+     },
+     "pages": {
+      "type": "array",
+      "items": {
+       "type": [
+        "integer",
+        "number",
+        "string"
+       ]
+      }
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "coverage"
+    ]
+   }
+  }
+ },
+ "required": [
+  "matches"
+ ],
+ "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -1,0 +1,133 @@
+{
+ "type": "object",
+ "properties": {
+  "storyline": {
+   "type": "string"
+  },
+  "section_decisions": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "section": {
+      "type": "string"
+     },
+     "decision": {
+      "type": "string",
+      "enum": [
+       "page",
+       "merge",
+       "notes",
+       "skip"
+      ]
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "section",
+     "decision"
+    ]
+   }
+  },
+  "pages": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "title_draft": {
+      "type": "string",
+      "minLength": 2
+     },
+     "question": {
+      "type": "string"
+     },
+     "sources": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      },
+      "minItems": 1
+     },
+     "points": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "minutes": {
+      "type": [
+       "number",
+       "string"
+      ]
+     }
+    },
+    "required": [
+     "title_draft",
+     "sources"
+    ]
+   },
+   "minItems": 1
+  },
+  "agenda": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "not_covered": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "item": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "item"
+    ]
+   }
+  },
+  "checklist_coverage": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "item": {
+      "type": "string"
+     },
+     "pages": {
+      "type": "array",
+      "items": {
+       "type": [
+        "integer",
+        "number"
+       ]
+      }
+     },
+     "note": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "item",
+     "pages"
+    ]
+   }
+  },
+  "self_check": {
+   "type": "object"
+  }
+ },
+ "required": [
+  "storyline",
+  "pages",
+  "checklist_coverage"
+ ],
+ "$schema": "http://json-schema.org/draft-07/schema#"
+}

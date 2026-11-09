@@ -1,0 +1,31 @@
+display_name: 软件操作培训
+description: 面向一线使用人员讲解信息系统怎么用，按业务流程或岗位讲清每一步操作，让学员能上手完成日常工作
+principle: 按“业务怎么办”组织：先讲系统概览（用途、登录与界面布局、角色与权限），再按业务流程或岗位逐项讲操作——每项操作讲清入口、步骤、要填写的内容和结果，最后讲常见问题、注意事项与求助渠道。一页讲一个操作任务，步骤保持原文顺序，界面截图优先上屏。
+default_duration_min: 30
+density: standard
+minutes_per_page: 1.5
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 小结与答疑
+title_style: 让学员知道本页学会做什么，如"四步完成图斑举证照片上传"
+focus_checklist:
+  - 系统用途与适用对象
+  - 登录方式、界面布局与主要菜单
+  - 角色与权限（谁能做什么）
+  - 各业务流程或岗位的操作：入口、步骤、填写内容、操作结果
+  - 关键规则与校验（如必填项、格式、审核流转）
+  - 常见问题与易错点
+  - 注意事项、求助与反馈渠道
+special_rules:
+  - 操作步骤必须保持原文顺序，不得合并、调换或省略；菜单名、按钮名照原文写
+  - 原文有界面截图的操作页优先放原图
+  - 术语首次出现时给出原文中的解释
+confirm_page: false
+skeleton_by: 业务流程              # 按业务流程或岗位划分的操作任务（保持原文顺序）
+figure_captions: 界面|截图|页面|操作|菜单|窗口|弹窗|按钮|列表|表单|示意
+shell:
+  before:
+    - {module: 系统概览, covers: 系统用途、登录方式、界面布局与主要菜单、角色与权限, required: true, min_pages: 1}
+  after:
+    - {module: 常见问题与注意事项, covers: 常见问题、易错点、注意事项、求助与反馈渠道, optional: true}
+baseline_questions: [怎么登录、界面怎么看, 每项业务怎么一步步操作, 出错了怎么办]

@@ -1,0 +1,27 @@
+display_name: 知识与规范培训
+description: 面向学员讲解知识、系统或操作流程，让学员学会并能应用
+principle: 按学习路径组织。先讲为什么学、学完能做什么，再讲核心概念，然后按步骤讲操作或方法，最后讲常见问题、注意事项与小结。一页只讲一个知识点，术语首次出现要解释。
+default_duration_min: 30
+minutes_per_page: 2
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 小结与答疑
+title_style: 让学员一眼知道本页要学什么，如"三步完成访客登记"
+focus_checklist:
+  - 培训目标：学完能做什么
+  - 需要先理解的核心概念与术语
+  - 整体结构或流程全貌
+  - 关键操作步骤（保持原文顺序）
+  - 角色与权限（谁能做什么）
+  - 常见问题、易错点与注意事项
+  - 小结
+special_rules:
+  - 操作步骤必须保持原文顺序，不得合并或调换
+  - 术语首次出现时给出原文中的解释
+skeleton_by: 学习任务              # 学员要学会完成的任务或操作（保持原文操作顺序）
+shell:
+  before:
+    - {module: 培训目标与全貌, covers: 为什么学、学完能做什么、系统或流程全貌、核心概念}
+  after:
+    - {module: 常见问题与小结, covers: 常见问题、易错点、注意事项、小结}
+baseline_questions: [学完能做什么, 最容易出错的地方是什么]

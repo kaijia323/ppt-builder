@@ -1,0 +1,32 @@
+display_name: 开题报告
+description: 研究生/课题开题答辩，论证选题价值、研究内容与可行性
+principle: 按开题答辩惯例：研究背景与意义 → 国内外研究现状 → 研究内容与拟解决的关键问题 → 研究方法与技术路线 → 进度安排 → 预期成果。重点让评审老师判断选题是否有价值、方案是否可行。
+default_duration_min: 15
+minutes_per_page: 1.2
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 恳请各位老师批评指正
+title_style: 准确、克制的结论式标题
+focus_checklist:
+  - 研究背景与问题来源
+  - 研究意义（理论与实际）
+  - 国内外研究现状及不足（仅限材料中写明的内容）
+  - 研究目标与研究内容
+  - 拟解决的关键问题与创新点
+  - 研究方法与技术路线
+  - 进度安排
+  - 预期成果
+  - 研究基础与条件
+  - 可能遇到的问题与解决办法（材料没有时列为缺口，不编造）
+special_rules:
+  - 严禁生成或补充任何参考文献、作者、年份、期刊名称
+  - 预期成果只能使用材料中写明的成果形式和指标，不得拔高
+skeleton_by: 研究内容              # 研究内容 / 研究问题（目标与关键问题讲同一件事时合并）
+shell:
+  before:
+    - {module: 选题与现状, covers: 选题背景与意义、国内外研究现状与不足}
+    - {module: 目标与思路, covers: 研究目标、拟解决的关键问题、总体技术路线}
+  after:
+    - {module: 方法与可行性, covers: 研究方法、实验方案、可行性与研究基础, optional: true}
+    - {module: 计划与成果, covers: 进度安排、预期成果、创新点}
+baseline_questions: [研究问题是否有价值, 技术路线是否可行]

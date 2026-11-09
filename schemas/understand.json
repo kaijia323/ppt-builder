@@ -1,0 +1,239 @@
+{
+ "type": "object",
+ "properties": {
+  "doc_type": {
+   "type": "string"
+  },
+  "doc_type_reason": {
+   "type": "string"
+  },
+  "written_for": {
+   "type": "string"
+  },
+  "effect": {
+   "type": "string"
+  },
+  "suggested_scenario": {
+   "type": "string"
+  },
+  "suggested_scenario_reason": {
+   "type": "string"
+  },
+  "storyline": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "chapters": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "section": {
+      "type": "string"
+     },
+     "role": {
+      "type": "string"
+     },
+     "summary": {
+      "type": "string"
+     },
+     "key_points": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "text": {
+         "type": "string"
+        },
+        "ids": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         }
+        }
+       },
+       "required": [
+        "text"
+       ]
+      }
+     },
+     "importance": {
+      "type": "string",
+      "enum": [
+       "high",
+       "medium",
+       "low"
+      ]
+     },
+     "importance_reason": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "section",
+     "summary",
+     "importance"
+    ]
+   },
+   "minItems": 1
+  },
+  "key_items": {
+   "type": "object",
+   "properties": {
+    "decisions": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    },
+    "metrics": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    },
+    "scope_in": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    },
+    "scope_out": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    },
+    "deliverables": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    }
+   },
+   "required": []
+  },
+  "doc_issues": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "text": {
+      "type": "string"
+     },
+     "ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "text"
+    ]
+   }
+  },
+  "doc_title": {
+   "type": "string"
+  }
+ },
+ "required": [
+  "doc_type",
+  "storyline",
+  "chapters",
+  "key_items"
+ ],
+ "$schema": "http://json-schema.org/draft-07/schema#"
+}

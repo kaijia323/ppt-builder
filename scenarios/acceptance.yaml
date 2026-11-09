@@ -1,0 +1,38 @@
+display_name: 项目验收汇报
+description: 项目完成后向验收专家组汇报，判断是否完成合同或任务书约定的全部内容、指标是否达到、成果是否齐全，能否通过验收
+principle: 以“逐项对应合同”为主线：先讲项目概况（合同要求、实施过程），再按合同/需求约定的建设内容逐项讲完成情况，然后讲测试与试运行结论、关键指标的目标值与实测值、交付成果与文档，最后讲用户使用成效和遗留问题处理。每页回答“合同要求的做到没有、凭什么证明”。
+default_duration_min: 20
+density: dense
+minutes_per_page: 1.3
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 恳请各位专家批评指正
+title_style: 结论式标题，写出完成或达标的事实，如"合同约定的5个子系统全部建成，22项指标全部达标"
+focus_checklist:
+  - 项目概况：合同金额、建设周期、建设内容、实施过程与里程碑
+  - 合同或需求约定的各项建设内容的完成情况（逐项对应）
+  - 测试与试运行：测试范围、方法、结论，试运行时长与问题处理
+  - 关键指标：目标值与实测值对照
+  - 交付成果与文档清单
+  - 用户使用情况与应用成效
+  - 项目管理：质量、安全、文档、培训
+  - 遗留问题与后续处理安排
+special_rules:
+  - 完成情况要与合同或需求约定逐项对应；原文给了目标值和实测值的，两者都要上屏
+  - 测试结论、指标达成只能用原文写明的结果，不得自行判定“全部达标”
+  - 遗留问题、未完成事项如实呈现，写明处理安排和时限
+  - 不设“需评审确认事项”页，验收结论由专家组作出
+confirm_page: false
+skeleton_by: 建设内容              # 合同或需求约定的建设内容（逐项讲完成情况）
+group_units: true
+units_title: 建设内容完成情况
+shell:
+  before:
+    - {module: 项目概况, covers: 项目背景、合同金额与建设周期、建设内容概要、实施过程与里程碑, required: true, min_pages: 1}
+  after:
+    - {module: 测试与试运行, covers: 测试范围、方法与结论、第三方测评、试运行情况, optional: true}
+    - {module: 指标达成, covers: 关键性能与业务指标的目标值与实测值, optional: true}
+    - {module: 交付成果, covers: 软件、数据、文档等交付成果清单与知识产权, optional: true, expected: true}
+    - {module: 应用成效, covers: 用户使用情况、业务应用成效、用户评价, optional: true}
+    - {module: 项目管理与遗留问题, covers: 质量与安全管理、培训、遗留问题及后续处理安排, optional: true}
+baseline_questions: [合同约定的内容是否全部完成, 指标是否达到、凭什么证明, 遗留问题如何处理]

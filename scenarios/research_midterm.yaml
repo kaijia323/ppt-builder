@@ -1,0 +1,35 @@
+display_name: 课题中期检查
+description: 科研课题实施中期向科研管理部门或专家汇报，对照开题报告或任务书检查研究进展、阶段成果、经费使用与后续计划
+principle: 以“对照计划检查进展”为主线：先讲课题概况与研究目标（任务书要求），再按研究内容逐项讲进展与阶段性结果，然后讲已取得的成果（论文、专利、软件著作权、数据、模型等）、经费使用、存在的问题与研究方案调整，最后讲后续研究计划。每页回答“按计划进展了没有、取得了什么”。
+default_duration_min: 15
+density: dense
+minutes_per_page: 1.2
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 恳请各位专家批评指正
+title_style: 准确、克制的结论式标题，写出进展或结果，如"完成两类样本库构建，分类精度达到任务书要求"
+focus_checklist:
+  - 课题概况：来源、研究目标、任务书考核指标
+  - 各项研究内容的进展（对照计划）
+  - 阶段性研究结果与数据
+  - 已取得的成果：论文、专利、软件著作权、标准、数据集、模型
+  - 经费使用情况
+  - 存在的问题与研究方案调整
+  - 后续研究计划与预期成果
+special_rules:
+  - 严禁生成或补充任何参考文献、作者、年份、期刊名称、专利号；成果只能使用材料中写明的
+  - 不得把计划或预期写成已取得的成果；投稿中、受理中要如实写明状态
+  - 研究方案有调整的，写明调整内容和原因
+confirm_page: false
+skeleton_by: 研究内容              # 开题或任务书中的研究内容（逐项讲进展）
+group_units: true
+units_title: 研究进展
+shell:
+  before:
+    - {module: 课题概况与研究目标, covers: 课题来源、研究目标、研究内容概要、任务书考核指标, required: true, min_pages: 1}
+  after:
+    - {module: 阶段成果, covers: 论文、专利、软件著作权、标准、数据集、模型等阶段成果, optional: true}
+    - {module: 经费使用, covers: 经费预算与实际支出情况, optional: true}
+    - {module: 问题与调整, covers: 存在的问题、研究方案调整及原因, optional: true}
+    - {module: 后续计划, covers: 后续研究内容、时间安排、预期成果, optional: true, expected: true}
+baseline_questions: [研究是否按计划推进, 取得了哪些阶段成果, 后续能否完成任务书指标]

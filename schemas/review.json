@@ -1,0 +1,74 @@
+{
+ "type": "object",
+ "properties": {
+  "overall": {
+   "type": "object",
+   "properties": {
+    "score": {
+     "type": [
+      "number",
+      "integer"
+     ]
+    },
+    "summary": {
+     "type": "string"
+    },
+    "strengths": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   },
+   "required": [
+    "score"
+   ]
+  },
+  "issues": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "properties": {
+     "page": {
+      "type": [
+       "integer"
+      ]
+     },
+     "type": {
+      "type": "string"
+     },
+     "severity": {
+      "type": "string",
+      "enum": [
+       "high",
+       "medium",
+       "low"
+      ]
+     },
+     "problem": {
+      "type": "string"
+     },
+     "suggestion": {
+      "type": "string"
+     },
+     "ids": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "page",
+     "severity",
+     "problem"
+    ]
+   }
+  }
+ },
+ "required": [
+  "overall",
+  "issues"
+ ],
+ "$schema": "http://json-schema.org/draft-07/schema#"
+}

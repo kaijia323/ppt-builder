@@ -1,0 +1,30 @@
+{
+ "type": "object",
+ "properties": {
+  "counter_arguments": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "verdict": {
+   "type": "string",
+   "enum": [
+    "supported",
+    "partial",
+    "unsupported"
+   ]
+  },
+  "reason": {
+   "type": "string"
+  },
+  "problem_span": {
+   "type": "string"
+  }
+ },
+ "required": [
+  "verdict",
+  "reason"
+ ],
+ "$schema": "http://json-schema.org/draft-07/schema#"
+}

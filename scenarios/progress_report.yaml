@@ -1,0 +1,34 @@
+display_name: 阶段汇报 / 中期检查
+description: 项目实施过程中向甲方或主管部门汇报阶段进展、中期检查，判断进度是否正常、问题能否解决、后续计划是否可行
+principle: 以“计划对比实际”为主线：先用一页讲清项目概况与总体进展（计划节点、实际完成、完成比例），再按工作任务逐项讲完成情况与阶段成果，然后讲存在的问题与偏差原因、下阶段计划，最后讲需要协调解决的事项。每页回答“按计划做了没有、做到什么程度、差在哪里”。
+default_duration_min: 15
+density: dense
+minutes_per_page: 1.2
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 恳请各位领导、专家批评指正
+title_style: 结论式标题，写出完成情况或进度判断，如"数据治理完成计划的85%，模型训练滞后2周"
+focus_checklist:
+  - 项目概况：合同或任务书要求、实施周期、总体进度（计划节点与实际完成）
+  - 各项工作任务的完成情况（已完成 / 进行中 / 未开始）与完成比例
+  - 阶段成果：已交付的成果、文档、数据、系统功能
+  - 进度偏差与原因
+  - 存在的问题、风险与应对措施
+  - 下阶段工作计划与节点
+  - 需要甲方或主管部门协调解决的事项
+special_rules:
+  - 已完成、进行中、未开始要分清，不得把计划写成已完成；原文给了完成比例或数量的要上屏
+  - 进度滞后、问题与风险如实呈现，写明原因和应对措施，不淡化
+  - 原文明确写了需甲方或上级协调、决定的事项时，可设“需协调事项”页放在结尾
+confirm_page: true
+skeleton_by: 工作任务              # 计划中的工作任务 / 建设任务（按任务逐项讲完成情况）
+group_units: true
+units_title: 工作完成情况
+shell:
+  before:
+    - {module: 项目概况与总体进展, covers: 项目背景与合同/任务书要求、实施周期、里程碑计划与实际完成情况、总体完成比例, required: true, min_pages: 1}
+  after:
+    - {module: 问题与偏差, covers: 进度偏差及原因、存在的问题、风险与应对措施, optional: true}
+    - {module: 下阶段计划, covers: 下阶段工作内容、时间节点、保障措施, optional: true, expected: true}
+    - {module: 需协调事项, covers: 需要甲方或主管部门协调解决、决定的事项, optional: true}
+baseline_questions: [进度是否按计划推进、偏差多大, 存在的问题如何解决, 后续如何保证按期完成]

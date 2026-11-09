@@ -1,0 +1,24 @@
+display_name: 通用汇报（自适应）
+description: 不属于以上任何场景时使用：结合汇报目的，从文档自身的结构中提炼汇报章节
+principle: 先想清楚这次汇报要让听众接受什么、记住什么，再从文档中挑出支撑这条主线的内容组织成章：开头交代背景与要解决的问题（或要讲的主题），中间按文档的主要内容展开，结尾给出结论、成效或下一步。章节顺序服从汇报主线，前后衔接连贯；不照抄文档目录，与汇报目的关系不大的内容（附录、编制依据、术语、参考文献、填表说明等）不设章。
+default_duration_min: 15
+minutes_per_page: 1.5
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 谢谢！欢迎交流
+title_style: 结论式标题
+focus_checklist:
+  - 背景、目的或要解决的问题
+  - 文档的核心内容（按主要组成部分）
+  - 关键数据、结果或结论
+  - 问题、风险或不足（原文有时）
+  - 下一步、建议或需要的决定（原文有时）
+special_rules:
+  - 章节从文档内容中提炼并按汇报主线排序，不机械照搬文档目录
+  - 原文没有的内容（如风险、下一步）不设页、不补写
+adaptive: true                     # 自适应骨架：不套固定外壳，章节由大纲骨架阶段结合汇报目的从原文提炼
+skeleton_by: 汇报章节
+shell:
+  before: []
+  after: []
+baseline_questions: [这次汇报要让听众接受的核心结论是什么, 支撑结论的关键内容和数据是什么]

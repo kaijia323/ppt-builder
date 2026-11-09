@@ -1,0 +1,6 @@
+{"$schema": "http://json-schema.org/draft-07/schema#", "type": "object", "required": ["profile", "units", "questions"],
+ "properties": {
+  "profile": {"type": "object", "required": ["doc_kind", "judged_by", "core"]},
+  "units": {"type": "array", "items": {"type": "object", "required": ["name", "sections"]}},
+  "shell": {"type": "array"}, "special": {"type": "object"},
+  "questions": {"type": "array", "items": {"type": "object", "required": ["q", "level", "answerable"]}}}}

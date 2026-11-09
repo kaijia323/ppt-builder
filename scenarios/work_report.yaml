@@ -1,0 +1,24 @@
+display_name: 工作汇报/总结
+description: 向领导汇报阶段工作、项目进展或年度总结
+principle: 先讲结果与亮点（用数据说话），再讲完成情况与主要工作，然后讲问题与不足，最后讲下一步计划与需要的支持。
+default_duration_min: 10
+minutes_per_page: 1.2
+structural_pages: [cover, agenda, closing]
+structural_minutes: 0.3
+closing_title: 汇报完毕，请领导指示
+title_style: 结论式标题，突出结果与数据
+focus_checklist:
+  - 总体情况与主要成效（数据）
+  - 重点工作完成情况
+  - 存在的问题与不足
+  - 下一步计划
+  - 需要的支持或决策
+special_rules:
+  - 已完成与计划要严格区分，未完成的不得写成已完成
+skeleton_by: 工作事项              # 汇报期内的主要工作事项或项目
+shell:
+  before:
+    - {module: 总体情况, covers: 汇报期总体进展、关键数字、完成情况概览}
+  after:
+    - {module: 问题与计划, covers: 存在问题与原因、下一步计划、需要协调或支持的事项}
+baseline_questions: [完成了什么、和目标比如何, 下一步做什么]

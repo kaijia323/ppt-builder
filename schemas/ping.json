@@ -1,0 +1,12 @@
+{
+ "type": "object",
+ "properties": {
+  "pong": {
+   "type": "boolean"
+  }
+ },
+ "required": [
+  "pong"
+ ],
+ "$schema": "http://json-schema.org/draft-07/schema#"
+}
