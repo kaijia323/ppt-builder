@@ -127,7 +127,7 @@ bin/run run --workdir <工作目录>                                  # 退出�
 ```
 
 `bin/run` 等价于 `.venv/bin/python run.py`（依赖装在技能目录的 `.venv` 里，不污染系统 Python）；Windows 上用 `.venv\Scripts\python.exe run.py`。
-job 里的 `resume_command` 是当前解释器 + 绝对路径拼好的命令，可直接复制执行。
+job 里的 `resume_command` 是当前解释器 + 绝对路径拼好的命令（按平台转义），可直接复制执行。
 换机器或技能目录搬家后，先建一次环境：`cd <技能目录> && uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt`。
 `init` 输出的 JSON 里 `summary.workdir` 就是工作目录的完整路径（没给 `--workdir` 时由程序生成），后面所有命令都用这个路径。
 开始运行时告诉用户一句：“成果会放在 <完整路径>”。
@@ -145,7 +145,7 @@ job 里的 `resume_command` 是当前解释器 + 绝对路径拼好的命令，�
    旧答案保留在 `agent/answers/` 里备查，所以每条内容都可回溯到是哪次作答产生的。
 
 规则补充：不要自己发明或改动 schema 里的字段；不要改 `01_`～`08_` 阶段目录和 `logs/` 下的文件；只写 `answer_path`。
-随时查看还剩多少没答：`bin/run jobs --workdir <工作目录>`（有未答 job 或答案不合格时退出码 4；每项带 `issues` 说明原因）。
+随时查看还剩多少没答：`bin/run jobs --workdir <工作目录>`（有未作答的 job、或答案不是合法 JSON / 不符合 schema 时退出码 4；每项带 `issues` 说明原因）。
 
 **工作目录结构**：顶层只有成果 `<标题>.pptx` 和 `注意事项.md`；检查点文件、回答文件、各阶段结果、日志、
 以及你作答用的 `agent/jobs/`、`agent/answers/` 都在 `<工作目录>/_过程文件/`（下文简称“过程目录”），用户不需要打开。

@@ -88,6 +88,18 @@ def read_json(path, default=None):
         return json.load(f)
 
 
+_UMASK = None
+
+
+def _default_file_mode():
+    """按当前 umask 得到普通文件的默认权限（写 JSON 时恢复，避免 mkstemp 的 0600）。"""
+    global _UMASK
+    if _UMASK is None:
+        _UMASK = os.umask(0)
+        os.umask(_UMASK)
+    return 0o666 & ~_UMASK
+
+
 def write_json(path, obj):
     """原子写：临时文件用 mkstemp（同目录、唯一名），再 os.replace。
 
@@ -99,6 +111,7 @@ def write_json(path, obj):
     os.makedirs(d, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=d)
     try:
+        os.fchmod(fd, _default_file_mode())      # mkstemp 是 0600，恢复成按 umask 的常规权限（N7）
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(obj, f, ensure_ascii=False, indent=2)
         os.replace(tmp, path)
@@ -364,7 +377,7 @@ def write_environment(wd, cfg):
         "config_path": cfg.get("_path"),
         "config": redacted_config(cfg),
         "llm_provider": cfg["llm"].get("provider"),
-        "network_needed": cfg["llm"].get("provider") != "agent",
+        "network_needed": cfg["llm"].get("provider") == "deepseek",
         "api_key_present": bool(os.environ.get(cfg["llm"].get("api_key_env", "DEEPSEEK_API"))
                                 or os.environ.get("DEEPSEEK_API_KEY")),
         "prompt_hashes": hashes(prompts_dir),

@@ -53,6 +53,7 @@ class AgentLLM:
         self.wd = logger.wd
         self.jobs_dir = self.wd.p("agent", "jobs")
         self.answers_dir = self.wd.p("agent", "answers")
+        self.index_file = self.wd.p("agent", "index.json")   # 每个 (task,target,vote) 当前该作答的 job（N1）
         self._job_lock = threading.Lock()      # 并行分支可能算出同一个 job_id，写入要串行（D3）
         os.makedirs(self.jobs_dir, exist_ok=True)
         os.makedirs(self.answers_dir, exist_ok=True)
@@ -75,10 +76,12 @@ class AgentLLM:
         return os.path.join(self.answers_dir, job_id + ".json")
 
     def resume_command(self):
-        """给智能体直接可复制执行的命令：用当前解释器 + 技能目录的绝对路径（D1）。"""
-        return "%s %s run --workdir %s" % (shlex.quote(sys.executable),
-                                           shlex.quote(os.path.join(SKILL_ROOT, "run.py")),
-                                           shlex.quote(self.wd.top))
+        """给智能体直接可复制执行的命令：当前解释器 + 技能目录绝对路径，按平台正确转义（D1/N4）。"""
+        argv = [sys.executable, os.path.join(SKILL_ROOT, "run.py"), "run", "--workdir", self.wd.top]
+        if os.name == "nt":
+            import subprocess
+            return subprocess.list2cmdline(argv)
+        return " ".join(shlex.quote(a) for a in argv)
 
     # ------------------------------------------------------------ main
     def call_json(self, task, variables, target="-", validator=None, vote=0, template=None):
@@ -122,6 +125,7 @@ class AgentLLM:
                     "messages": messages,
                     })
             if fresh:
+                self._set_pending(task, target, vote, job_id, attempt)
                 self._log_call(task, target, vote, attempt, prof, tpl_name, tpl_hash, sys_hash,
                                messages, None, None, None, job_file, ans_file, ["等待智能体作答"], started)
                 raise NeedModel([self._job_record(job_file, ans_file)])
@@ -157,6 +161,7 @@ class AgentLLM:
                            messages, content, data, issues, job_file, ans_file, issues, started)
 
             if not issues:
+                self._clear_pending(task, target, vote)
                 return {"data": data, "ok": True, "issues": [], "attempts": attempt,
                         "call_ids": call_ids, "reasoning": reasoning}
             if attempt >= self.max_attempts:
@@ -244,6 +249,56 @@ class AgentLLM:
         return results
 
     # ------------------------------------------------------------ pending
+    # ------------------------------------------------------------ pending index
+    @staticmethod
+    def _key(task, target, vote):
+        return "%s|%s|%s" % (task, target, vote)
+
+    def _read_index(self):
+        d = read_json(self.index_file) or {}
+        return d.get("entries") or {}
+
+    def _set_pending(self, task, target, vote, job_id, attempt):
+        """记录“这个 (task,target,vote) 当前该作答的 job”。
+
+        同 attempt 换了提示词（大纲修改/replan、改 schema 升级）时 job_id 会变，
+        以最后写入的为准，不靠文件名或 attempt 猜测（N1）。
+        """
+        with self._job_lock:
+            entries = self._read_index()
+            entries[self._key(task, target, vote)] = {"job_id": job_id, "attempt": attempt,
+                                                      "updated_at": now_iso()}
+            write_json(self.index_file, {"entries": entries})
+
+    def _clear_pending(self, task, target, vote):
+        with self._job_lock:
+            entries = self._read_index()
+            if self._key(task, target, vote) in entries:
+                del entries[self._key(task, target, vote)]
+                write_json(self.index_file, {"entries": entries})
+
+    def _rebuild_index(self):
+        """没有索引时按 created_at 重建（升级兼容）：每个 (task,target,vote) 取最新创建的那个 job。"""
+        groups = {}
+        for fn in sorted(os.listdir(self.jobs_dir)):
+            if not fn.endswith(".json") or fn.endswith(".tmp"):
+                continue
+            job = read_json(os.path.join(self.jobs_dir, fn))
+            if not job or not job.get("job_id"):
+                continue
+            key = (job.get("task"), job.get("target"), job.get("vote", 0))
+            cur = groups.get(key)
+            if cur is None or (job.get("created_at") or "") >= (cur.get("created_at") or ""):
+                groups[key] = job
+        entries = {}
+        for (task, target, vote), job in groups.items():
+            entries[self._key(task, target, vote)] = {"job_id": job["job_id"],
+                                                      "attempt": job.get("attempt"),
+                                                      "updated_at": now_iso()}
+        if entries:
+            write_json(self.index_file, {"entries": entries})
+        return entries
+
     def _answer_issues(self, job):
         """只看 JSON 与 schema 判定当前答案能不能用（语义 validator 由重跑时的调用方判定）。"""
         job_id = job.get("job_id") or ""
@@ -265,30 +320,31 @@ class AgentLLM:
         return schema_errors(data, job.get("schema")) or []
 
     def pending_jobs(self):
-        """待作答（含答案不合格）的 job：每个 (task,target,vote) 只看最新一次尝试。
+        """待作答（含答案不合格）的 job：读索引，与 call_json 的“下一个要答的 attempt”一致。
 
-        这样写错的答案会继续显示为待作答，被新尝试取代的旧 job 不会永久挂着（D4）。
+        索引由 _set_pending 在出题时写、成功作答后删，所以 replan 换提示词、改 schema 导致 job_id
+        变化时，不会把旧 job 误当成最新的（N1）；过期的旧 attempt 也不会永久挂着（N2）。
         """
-        if not os.path.isdir(self.jobs_dir):
-            return []
-        latest = {}
-        for fn in sorted(os.listdir(self.jobs_dir)):
-            if not fn.endswith(".json") or fn.endswith(".tmp"):
+        entries = self._read_index()
+        if not entries and os.path.isdir(self.jobs_dir):
+            try:
+                entries = self._rebuild_index()  # 旧工作目录（升级前进来的）没有索引：按 created_at 取最新
+            except Exception:                    # noqa  只读目录等：退化为“没有待作答”
+                entries = {}
+        out = []
+        for key, rec in entries.items():
+            job_id = rec.get("job_id")
+            if not job_id:
                 continue
-            job = read_json(os.path.join(self.jobs_dir, fn))
+            job = read_json(self.job_path(job_id))
             if not job:
                 continue
-            key = (job.get("task"), job.get("target"), job.get("vote", 0))
-            if key not in latest or int(job.get("attempt") or 0) >= int(latest[key].get("attempt") or 0):
-                latest[key] = job
-        out = []
-        for job in latest.values():
             issues = self._answer_issues(job)
             if not issues:
-                continue
-            rec = self._job_record(self.job_path(job["job_id"]), self.answer_path(job["job_id"]))
-            rec["prompt_chars"] = len(json.dumps(job.get("messages") or [], ensure_ascii=False))
-            rec["issues"] = issues[:5]
-            out.append(rec)
+                continue          # 有合法答案：下次 run 会直接用掉它
+            item = self._job_record(self.job_path(job_id), self.answer_path(job_id))
+            item["prompt_chars"] = len(json.dumps(job.get("messages") or [], ensure_ascii=False))
+            item["issues"] = issues[:5]
+            out.append(item)
         out.sort(key=lambda r: (r.get("task") or "", r.get("target") or ""))
         return out
