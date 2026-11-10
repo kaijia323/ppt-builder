@@ -16,6 +16,8 @@ SPEECH_META = re.compile(r"本页|这一页|此页|该页|本张|从各章(中)?
                          r"可(以)?强调|建议(讲|说|强调|提及)|讲者|汇报人(可|应|需)")
 QA_OPEN = re.compile(r"^.{0,24}(靠的是|为什么|怎么保证|如何保证|是什么？|怎么做？)")
 NEXT_TALK = re.compile(r"(下面|接下来|下一页|随后)(看|讲|介绍|汇报)")
+# 本部分没有过渡页时，提示词要求讲稿开头用“下面汇报第X部分：……”，这是唯一放行的转场句
+SECTION_OPEN = re.compile(r"(下面|接下来)汇报第[一二三四五六七八九十0-9]+部分")
 
 
 def slide_lines(pg, banner=True):
@@ -73,17 +75,17 @@ def speech_issues(d, slide_txt, src, cap, title, banner=""):
         if A and B and len(A & B) / float(min(len(A), len(B))) >= 0.7:
             iss.append("最后一句只是把底部结论原句又念了一遍：用自己的话说出这一页的意义或要达到的指标")
     if len(t) < cap * 0.6:
-        iss.append("讲稿过短（%d 字），本页应为 %d—%d 字" % (len(t), int(cap * 0.75), cap))
+        iss.append("讲稿过短（%d 字），本页至少 %d 字（篇幅上限 %d 字）" % (len(t), int(cap * 0.6), cap))
     if len(t) > cap * 1.12:
         n_s = len([x for x in re.split(r"[。！？]", t) if x.strip()])
         iss.append("讲稿过长（%d 字、%d 句），本页最多 %d 字：减到 %d 句左右，每句不超过 32 字；并列项只说名称和一句话要点，删去屏上没有的细节"
-                   % (len(t), n_s, cap, max(4, int(cap * 0.85 / 32))))
+                   % (len(t), n_s, int(cap * 1.12), max(4, int(cap * 0.85 / 32))))
     m = SPEECH_META.search(t)
     if m:
         iss.append("讲稿里有对本页的说明或给汇报人的提示（“%s”）：直接讲内容" % m.group(0))
     if QA_OPEN.search(t):
         iss.append("开头不要用设问或回答问题的口吻（如“……靠的是……”）：用“××方面”“从××看”“××采用××”点明话题")
-    if NEXT_TALK.search(t):
+    if any(not SECTION_OPEN.match(t[m.start():]) for m in NEXT_TALK.finditer(t)):
         iss.append("内容页不写“下面看/接下来讲”之类的转场（转场在章节过渡页）：最后一句收束本页的结论、意义或指标")
     tt = re.sub(r"^[\d.]+\s*", "", title)
     if len(tt) >= 10 and t.startswith(tt[:10]):

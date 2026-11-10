@@ -201,6 +201,46 @@
        "text"
       ]
      }
+    },
+    "time_limits": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    },
+    "exceptions": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string"
+       },
+       "ids": {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
     }
    },
    "required": []
@@ -226,6 +266,9 @@
    }
   },
   "doc_title": {
+   "type": "string"
+  },
+  "doc_date": {
    "type": "string"
   }
  },

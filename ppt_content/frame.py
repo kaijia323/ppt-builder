@@ -140,7 +140,7 @@ def frame_issues(d, doc, und, scen):
         if not ks:
             iss.append("骨架“%s”没有 sections" % u.get("name"))
         all_unit_keys.append(set(ks))
-        if not 2 <= len(re.sub(r"\s", "", u.get("name", ""))) <= 16:
+        if not 4 <= len(re.sub(r"\s", "", u.get("name", ""))) <= 14:
             iss.append("骨架名称“%s”应为 4—14 字" % u.get("name"))
     for i in range(len(all_unit_keys)):
         for j in range(i + 1, len(all_unit_keys)):
