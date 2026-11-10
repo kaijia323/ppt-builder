@@ -375,6 +375,13 @@ def main(argv=None):
         if not os.path.exists(wd.p("brief.json")):
             if os.path.exists(os.path.join(wd.top, "注意事项.md")) and \
                     any(f.lower().endswith(".pptx") for f in os.listdir(wd.top)):
+                if a.cmd == "status":       # 已交付：状态查询应正常返回“完成”，不要当作配置错误
+                    info = {"stages": {x: "done" for x in STAGES}, "finished": True, "cleanup": True,
+                            "files": [f for f in sorted(os.listdir(wd.top))
+                                      if f.lower().endswith(".pptx") or f == "注意事项.md"],
+                            "hint": "已确认完成、过程文件已清理；成果在 %s，需要修改请重新生成" % wd.top}
+                    emit(True, EXIT_OK, "status", info, info["hint"], files=[os.path.join(wd.top, f) for f in info["files"]])
+                    return EXIT_OK
                 raise PipelineError("这份 PPT 已确认完成，过程文件已清理（%s 只保留成果）。需要修改时可直接在 PowerPoint 里改，"
                                     "或重新运行 init 生成" % wd.top, EXIT_CONFIG)
             # 路径写错或还没 init：直接说明，不去创建目录（0.7.0-dev7）
@@ -398,7 +405,7 @@ def main(argv=None):
         if a.cmd == "jobs":
             from ppt_content.agent_channel import AgentLLM
             pend = AgentLLM(cfg, log).pending_jobs()
-            emit(True, EXIT_OK if not pend else EXIT_NEED_MODEL, "jobs",
+            emit(not pend, EXIT_OK if not pend else EXIT_NEED_MODEL, "jobs",
                  {"provider": (cfg.get("llm") or {}).get("provider"), "pending": len(pend), "jobs": pend},
                  "读 job 的 instructions，把答案写到 answer_path，然后运行 run" if pend else "没有待作答的 job")
             return EXIT_OK if not pend else EXIT_NEED_MODEL
