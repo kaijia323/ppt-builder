@@ -259,10 +259,27 @@ class AgentLLM:
         if not os.path.exists(self.index_file):
             return None
         try:
-            d = read_json(self.index_file) or {}
+            d = read_json(self.index_file)
         except Exception:          # 索引被写坏（外部改坏/非原子写）：当缺失处理，重建
             return None
-        return d.get("entries") or {}
+        if not isinstance(d, dict):        # 合法 JSON 但形状不对（如 [1,2] / null）：同样当损坏
+            return None
+        entries = d.get("entries")
+        if entries is None:
+            return {}
+        if not isinstance(entries, dict):
+            return None
+        return entries
+
+    def _writable_entries(self):
+        """准备一份可写的索引：缺失/损坏时先按 created_at 重建，避免覆盖旧条目（升级边角）。"""
+        entries = self._read_index()
+        if entries is None:
+            try:
+                entries = self._rebuild_index()
+            except Exception:      # noqa  只读目录等：退化为空索引
+                entries = {}
+        return entries or {}
 
     def _set_pending(self, task, target, vote, job_id, attempt):
         """记录“这个 (task,target,vote) 当前该作答的 job”。
@@ -271,17 +288,16 @@ class AgentLLM:
         以最后写入的为准，不靠文件名或 attempt 猜测（N1）。
         """
         with self._job_lock:
-            entries = self._read_index() or {}
+            entries = self._writable_entries()
             entries[self._key(task, target, vote)] = {"job_id": job_id, "attempt": attempt,
                                                       "updated_at": now_iso()}
             write_json(self.index_file, {"entries": entries})
 
     def _clear_pending(self, task, target, vote):
         with self._job_lock:
-            entries = self._read_index() or {}
-            if self._key(task, target, vote) in entries:
-                del entries[self._key(task, target, vote)]
-                write_json(self.index_file, {"entries": entries})
+            entries = self._writable_entries()
+            entries.pop(self._key(task, target, vote), None)
+            write_json(self.index_file, {"entries": entries})   # 总是落盘：避免后续重建把已消费的条目复活
 
     def _rebuild_index(self):
         """没有索引时按 created_at 重建（升级兼容）：每个 (task,target,vote) 取最新创建的那个 job。"""

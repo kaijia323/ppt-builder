@@ -2,7 +2,7 @@
 
 把需求分析、技术方案、培训文档、开题报告、工作材料等提炼成**讲得全、对得上口、凝练且可溯源**的 PPT 内容，并自动排成可编辑的 PPT（模型选版式、程序画图，原生形状，42 个版式，同一版式自动换外观）。
 
-**这是 dsh 适配版（0.8.0-dsh.5）**：不需要 API Key、不联网——每一次模型调用都由运行它的智能体（agent）按 job 提示词作答，流水线负责解析、校验、版式与渲染。原版的 `provider: deepseek`（自带 Key 走 OpenAI 兼容接口）仍然保留。
+**这是 dsh 适配版（0.8.0-dsh.6）**：不需要 API Key、不联网——每一次模型调用都由运行它的智能体（agent）按 job 提示词作答，流水线负责解析、校验、版式与渲染。原版的 `provider: deepseek`（自带 Key 走 OpenAI 兼容接口）仍然保留。
 
 - 给智能体看的说明：`SKILL.md`（重点看「二、运行 / 作答协议」）
 - 上游原版：https://github.com/wendaokeliu-sys/ppt-builder ；本 fork：https://github.com/kaijia323/ppt-builder
