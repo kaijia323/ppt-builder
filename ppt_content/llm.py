@@ -1,4 +1,6 @@
-"""模型调用层：OpenAI 兼容接口（默认 DeepSeek），只用标准库发 HTTP，便于移植。
+"""模型调用层（provider: deepseek / mock）：OpenAI 兼容接口，只用标准库发 HTTP，便于移植。
+
+注意：默认的 provider: agent 不走本文件，见 ppt_content/agent_channel.py（job 文件 + 智能体作答，不联网）。
 
 每次调用都会：
   1. 用 prompts/<task>.md 渲染提示词（记录模板哈希）
@@ -400,3 +402,17 @@ class HTTPFail(Exception):
     def __init__(self, status, text, http_log):
         super().__init__("HTTP %s" % status)
         self.status, self.text, self.http_log = status, text, http_log
+
+
+def make_llm(cfg, log):
+    """按 config 的 llm.provider 选择模型层。
+
+    - agent（默认，0.8-dsh）：不联网、不要 API Key，模型输出由会话里的智能体按 job 文件作答；
+    - deepseek / 其他：走 OpenAI 兼容 HTTP 接口（保留给自带 Key 的用法）；
+    - mock：离线规则模拟，只验证流程，内容无意义。
+    """
+    prov = (cfg.get("llm") or {}).get("provider", "deepseek")
+    if prov == "agent":
+        from .agent_channel import AgentLLM
+        return AgentLLM(cfg, log)
+    return LLM(cfg, log)

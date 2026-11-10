@@ -1,0 +1,6 @@
+# 本地运行环境与缓存（不进仓库）
+.venv/
+__pycache__/
+*.pyc
+.pptc_check/
+work/

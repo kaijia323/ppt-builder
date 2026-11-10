@@ -1,0 +1,11 @@
+#!/bin/sh
+# 用技能自带 venv 跑 run.py：依赖装在 <技能目录>/.venv 里，避免污染系统 Python（PEP 668）。
+# 首次使用若 .venv 不存在：
+#   cd <技能目录> && uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ ! -x "$DIR/.venv/bin/python" ]; then
+  echo "缺少运行环境：$DIR/.venv/bin/python" >&2
+  echo "请先在技能目录执行：uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt" >&2
+  exit 3
+fi
+exec "$DIR/.venv/bin/python" "$DIR/run.py" "$@"

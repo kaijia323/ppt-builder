@@ -61,7 +61,10 @@ def run_report(wd):
     for t, cs in sorted(by.items()):
         groups = {}
         for c in cs:
-            groups.setdefault((c["target"], c.get("vote", 0), c["call_id"].rsplit(".", 1)[-1]), []).append(c)
+            # HTTP provider 的 call_id 以 .<invocation> 结尾，去掉才能归成一次调用；
+            # agent provider 的 call_id 就是 job_id（每次尝试一个），按 target 归组。
+            tail = "agent" if c.get("model") == "agent" else c["call_id"].rsplit(".", 1)[-1]
+            groups.setdefault((c["target"], c.get("vote", 0), tail), []).append(c)
         first_ok = sum(1 for g in groups.values() if min(g, key=lambda x: x["attempt"])["ok"])
         final_fail = sum(1 for g in groups.values() if not max(g, key=lambda x: x["attempt"])["ok"])
         lat = sorted(c["latency_ms"] for c in cs)

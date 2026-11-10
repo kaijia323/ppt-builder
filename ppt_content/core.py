@@ -34,7 +34,9 @@ STAGE_DIRS = {
     "design": "08_visual", "render": "08_visual",
 }
 
+# 0 成功；1 运行错误；2 需要用户决定（检查点）；3 配置/环境/输入错误；4 需要智能体作答（provider: agent）
 EXIT_OK, EXIT_ERROR, EXIT_NEED_USER, EXIT_CONFIG = 0, 1, 2, 3
+EXIT_NEED_MODEL = 4
 
 
 class PipelineError(Exception):
@@ -49,6 +51,18 @@ class NeedUser(Exception):
     def __init__(self, msg, files=None):
         super().__init__(msg)
         self.files = files or []
+
+
+class NeedModel(Exception):
+    """provider: agent 时需要智能体作答：退出码 4。jobs 是待作答的 job 列表。"""
+    def __init__(self, jobs):
+        self.jobs = jobs or []
+        super().__init__("需要智能体作答 %d 个 job" % len(self.jobs))
+
+    @property
+    def files(self):
+        return [j.get("answer_path") for j in self.jobs if j.get("answer_path")] + \
+               [j.get("job_path") for j in self.jobs if j.get("job_path")]
 
 
 def now_iso():
@@ -75,11 +89,25 @@ def read_json(path, default=None):
 
 
 def write_json(path, obj):
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, path)
+    """原子写：临时文件用 mkstemp（同目录、唯一名），再 os.replace。
+
+    固定名 `<path>.tmp` 在多线程并发写同一路径时会互相删掉对方的临时文件
+    （provider: agent 的并行分支可能同时写同一个 job / state），所以必须唯一化。
+    """
+    import tempfile
+    d = os.path.dirname(os.path.abspath(path))
+    os.makedirs(d, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=d)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def read_jsonl(path):
@@ -335,6 +363,8 @@ def write_environment(wd, cfg):
         "packages": pkgs,
         "config_path": cfg.get("_path"),
         "config": redacted_config(cfg),
+        "llm_provider": cfg["llm"].get("provider"),
+        "network_needed": cfg["llm"].get("provider") != "agent",
         "api_key_present": bool(os.environ.get(cfg["llm"].get("api_key_env", "DEEPSEEK_API"))
                                 or os.environ.get("DEEPSEEK_API_KEY")),
         "prompt_hashes": hashes(prompts_dir),

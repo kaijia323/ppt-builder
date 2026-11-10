@@ -1,34 +1,44 @@
 # ppt-builder
 
-把需求分析、技术方案、培训文档、开题报告、工作材料等提炼成**讲得全、对得上口、凝练且可溯源**的 PPT 内容，并自动排成可编辑的 PPT（模型选版式、程序画图，原生形状，42 个版式，同一版式自动换外观）。所有模型调用走 DeepSeek（OpenAI 兼容接口）；智能体只负责与用户沟通和运行命令，因此可以移植到任何能执行命令的智能体上。
+把需求分析、技术方案、培训文档、开题报告、工作材料等提炼成**讲得全、对得上口、凝练且可溯源**的 PPT 内容，并自动排成可编辑的 PPT（模型选版式、程序画图，原生形状，42 个版式，同一版式自动换外观）。
 
-- 给智能体看的说明：`SKILL.md`
-- 版本变化与设计原因：`CHANGELOG.md`
+**这是 dsh 适配版（0.8.0-dsh.1）**：不需要 API Key、不联网——每一次模型调用都由运行它的智能体（agent）按 job 提示词作答，流水线负责解析、校验、版式与渲染。原版的 `provider: deepseek`（自带 Key 走 OpenAI 兼容接口）仍然保留。
+
+- 给智能体看的说明：`SKILL.md`（重点看「二、运行 / 作答协议」）
+- 上游原版：https://github.com/wendaokeliu-sys/ppt-builder ；本 fork：https://github.com/kaijia323/ppt-builder
 
 ## 1. 安装
 
 ```bash
-pip install -r requirements.txt          # 可选：安装 LibreOffice 以支持 .doc/.ppt/.xls/.wps 等旧格式
-export DEEPSEEK_API=sk-...               # 只从环境变量读取，不会写入任何文件或日志（旧名 DEEPSEEK_API_KEY 仍可用）
-python run.py ping                       # 测试连通性，显示每个任务使用的模型
+cd <技能目录>
+uv venv .venv && uv pip install --python .venv/bin/python -r requirements.txt
+bin/run ping                            # agent 模式：不联网、不需要 Key，直接返回就绪
 ```
+
+依赖装在技能目录的 `.venv` 里（避开 Debian/Ubuntu 的 PEP 668 限制，也不碰系统 Python）；`bin/run` 就是 `.venv/bin/python run.py`。
+可选：安装 LibreOffice（`soffice`）以支持 `.doc/.ppt/.xls/.wps` 等旧格式解析。
 
 ## 2. 快速开始
 
 ```bash
-python run.py init --workdir work/demo --scenario requirements_review \
+bin/run init --workdir work/demo --scenario requirements_review \
   --inputs 需求分析说明书.docx --audience "甲方组织的需求论证专家" \
   --purpose "需求分析说明书通过专家论证" --duration 20
-python run.py run --workdir work/demo    # 停在大纲确认（大纲表 + 提醒）→ 写 answers.json
-python run.py run --workdir work/demo    # 写作、审查、核验（问题自动修正）、排版、讲稿，停在成品确认 → 写 visual_answers.json
-python run.py run --workdir work/demo    # 确认后完成 → work/demo/<标题>.pptx + 注意事项.md
+
+bin/run run --workdir work/demo          # 退出码 4：按 job 作答后重跑；退出码 2：大纲确认 → 写 answers.json
+bin/run run --workdir work/demo          # 继续：写作、审查、核验、排版、讲稿，停在成品确认 → 写 visual_answers.json
+bin/run run --workdir work/demo          # 确认后完成 → work/demo/<标题>.pptx + 注意事项.md
 ```
+
+`provider: agent` 的循环：`run` 每次走到需要模型输出时，就以退出码 4 结束并给出 job 文件（提示词 + schema + 输出路径）；
+智能体把答案写成 JSON 放到 `answer_path`，再重跑同一条命令。已答的 job 自动复用，答案不合格会生成带问题清单的新 job。
+详见 `SKILL.md` 的「作答协议」。
 
 不给 `--workdir` 时，成果放在第一个材料所在的文件夹里新建的 `PPT_<材料文件名>`（已有同名文件夹则用 `_2`、`_3`……），完整路径见 `init` 输出的 `summary.workdir`。
 
 ## 3. 设计思路：像专家一样自上而下
 
-| 步骤 | 做什么 | 模型 | 关键设计 |
+| 步骤 | 做什么 | 档位 | 关键设计 |
 |---|---|---|---|
 | ① 通读理解 | 读完全文，产出"理解卡"：文档类型与用途、论证主线、逐章作用/摘要/要点/对听众的重要性、关键事项（待确认、指标、做与不做、交付、约束）、文档自身问题 | flash 深度思考 | 先给目录再给全文，任务放在最后；强制逐章输出，防止中间读漏；重要性按"听众要做什么判断"来定 |
 | ② 内容规划 | 先搭大纲骨架与追问清单（frame），再定章、按章展开到页（三步规划） | flash 深度思考 | 页数按时长与篇幅给出；要点须是原文事实；问题须落页；归纳页每条出自原文 |
@@ -38,6 +48,9 @@ python run.py run --workdir work/demo    # 确认后完成 → work/demo/<标题
 | ⑤ 核验 | 脚本检查（出处、数字、程度词、语气、篇幅）＋ 标题蕴含核验 | flash 思考 | 问题按默认意见自动修正（按原文改写/删重复），处理不了的汇总到《注意事项.md》 |
 | ⑥ 导出 | 输出 content.json / outline.md / sources.md | — | 自动修正与用户改写的内容可追溯 |
 | ⑦ 排版与讲稿 | 选版式、填槽位、对着成品页写讲稿 | flash | 成品确认时可按页改内容（edit）或版面（feedback/layout），只重做点名页 |
+
+「档位」列在 `provider: agent` 下表示 job 的 `thinking` 提示（`flash 深度思考` = `thinking: enabled`，应当深想再答）；
+原来的 `flash` 是 DeepSeek 模型名，走 `provider: deepseek` 时才真的选模型。
 
 场景文件（`scenarios/*.yaml`）不再规定固定槽位，而是给出这类汇报的**组织原则**和**听众关注点清单**。新增场景只需复制一个 yaml 修改即可。
 
@@ -52,12 +65,13 @@ python run.py run --workdir work/demo    # 确认后完成 → work/demo/<标题
 
 ## 4. 配置（config.yaml）
 
-- `llm.profiles`：
-  - `deep`（deepseek-flash，深度思考）：通读、规划
-  - `review`（deepseek-flash，深度思考）：编辑审查
-  - `write`（deepseek-flash，不思考）：写页面
-  - `verify`（flash，思考）：标题核验
-- 思考内容计入输出额度，所以 `deep` 档位的 `max_tokens` 设为 65536。
+- `llm.provider`：`agent`（默认，不联网、不需要 Key，模型活由会话智能体按 job 作答）/ `deepseek`（自带 Key 走 OpenAI 兼容接口）/ `mock`（离线规则模拟，只验证流程）。
+- `llm.profiles`（`provider: agent` 时只取其中的 `thinking` 作为 job 提示；`deepseek` 时才真正选模型/参数）：
+  - `deep`（深度思考）：通读、规划
+  - `review`（深度思考）：编辑审查
+  - `write`（不思考）：写页面
+  - `verify`（思考）：标题核验
+- `llm.max_semantic_retries`：答案不合格时带问题清单重写的次数上限（agent 模式下表现为生成新的 job）。
 - `understand.max_single_chars`：不超过这个字数（默认 30 万字）时一次读完全文。
 - `write`：标题、要点、备注的字数上限。
 - `review.revise`、`review.final_pass`：是否带意见重写、是否终审。
@@ -88,6 +102,7 @@ python run.py run --workdir work/demo    # 确认后完成 → work/demo/<标题
   06_check/       check_report.json
   07_export/      content.json  outline.md  sources.md  decisions_applied.json  pending.json
   08_visual/      design.json  <标题>.pptx  preview.pdf  sheet_*.png  visual_report.json  讲稿.md
+  agent/          jobs/<job_id>.json（题目：提示词+schema+输出路径） answers/<job_id>.json（你的作答）
   checkpoint3.md  visual_answers.json
   logs/
 ```
@@ -96,7 +111,7 @@ python run.py run --workdir work/demo    # 确认后完成 → work/demo/<标题
 
 | 文件 | 内容 |
 |---|---|
-| `logs/llm/<call_id>.json` | 每次模型调用的完整记录：完整提示词、请求参数、原始输出、思考内容、解析结果、token、耗时、HTTP 尝试、校验问题 |
+| `logs/llm/<call_id>.json` | 每次模型调用的完整记录：完整提示词、请求参数、输出（HTTP provider 为模型原始输出，agent 为你的答案）、解析结果、token、耗时、请求/作答尝试、校验问题 |
 | `logs/llm_calls.jsonl` | 每次调用的摘要 |
 | `logs/gates.jsonl` | 各质量关卡的判定，例如章节是否被理解、关注点是否覆盖、页面是否一次写成、审查问题、核验结果 |
 | `logs/events.jsonl`、`run.log` | 事件与文本日志 |
@@ -109,10 +124,12 @@ python run.py run --workdir work/demo    # 确认后完成 → work/demo/<标题
 ## 7. 评测与反馈
 
 ```bash
-python run.py eval --workdir work/demo --gold gold.json
-python run.py eval-summary --workdirs work/a work/b --out summary.md
-python run.py bundle --workdir work/demo --include-inputs
+bin/run eval --workdir work/demo --gold gold.json
+bin/run eval-summary --workdirs work/a work/b --out summary.md
+bin/run bundle --workdir work/demo --include-inputs
 ```
+
+Windows 上用 `.venv\Scripts\python.exe run.py ...`（`bin/run` 是 POSIX sh 脚本）。
 
 ## 8. 已知限制
 

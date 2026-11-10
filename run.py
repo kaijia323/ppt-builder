@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ppt-builder 命令行入口。
 
-退出码：0 成功；1 运行错误；2 需要用户决定（检查点）；3 配置/环境/输入错误
+退出码：0 成功；1 运行错误；2 需要用户决定（检查点）；3 配置/环境/输入错误；4 需要智能体作答（provider: agent）
 每条命令最后在 stdout 输出一行 JSON：{"ok", "exit_code", "command", "summary", "next", "files"}，方便任何智能体解析。
 """
 import argparse
@@ -19,9 +19,9 @@ for _s in (sys.stdout, sys.stderr):
         pass
 
 from ppt_content import VERSION  # noqa: E402
-from ppt_content.core import (EXIT_CONFIG, EXIT_ERROR, EXIT_NEED_USER, EXIT_OK, STAGES, NeedUser,  # noqa: E402
-                              PipelineError, RunLogger, Workdir, format_exc, load_config, load_scenario, now_iso,
-                              read_json, write_environment, write_json)
+from ppt_content.core import (EXIT_CONFIG, EXIT_ERROR, EXIT_NEED_MODEL, EXIT_NEED_USER, EXIT_OK,  # noqa: E402
+                              STAGES, NeedModel, NeedUser, PipelineError, RunLogger, Workdir, format_exc,
+                              load_config, load_scenario, now_iso, read_json, write_environment, write_json)
 
 NEXT_HINT = {
     "ingest": "understand", "understand": "plan",
@@ -133,8 +133,8 @@ def run_stage(stage, wd, cfg, log, a, feedback=None, revise=None):
         return {"skipped": "visual.enabled=false，只输出内容稿"}
     llm = None
     if stage not in ("ingest", "render"):          # export 也要：审查问题的默认处理需要按原文改写（0.7）
-        from ppt_content.llm import LLM
-        llm = LLM(cfg, log)
+        from ppt_content.llm import make_llm
+        llm = make_llm(cfg, log)
     if stage == "write":
         # 检查点 1：已确认则继续；有修改意见/补充内容则自动重新规划并再次停在检查点 1
         res = plan.resolve_checkpoint(wd, cfg, log, llm)
@@ -177,6 +177,11 @@ def run_stage(stage, wd, cfg, log, a, feedback=None, revise=None):
     except NeedUser as e:
         wd.set_stage(stage, "waiting_user", message=str(e))
         log.end_stage("waiting_user")
+        raise
+    except NeedModel as e:
+        # 不是失败：等智能体作答，重跑时会从该阶段继续
+        wd.set_stage(stage, "waiting_agent", message=str(e))
+        log.end_stage("waiting_agent")
         raise
     except Exception:
         wd.set_stage(stage, "failed")
@@ -254,10 +259,20 @@ def disable_quick_edit():
         pass
 
 
+class _ArgParser(argparse.ArgumentParser):
+    """用法错误（缺参数等）也输出一行 JSON：退出码 3（配置/环境/输入错误），便于智能体解析。"""
+
+    def error(self, message):
+        print(json.dumps({"ok": False, "exit_code": EXIT_CONFIG, "command": None, "summary": {},
+                          "next": None, "files": [], "error": "命令行参数错误：%s" % message}, ensure_ascii=False))
+        print(self.format_usage().strip(), file=sys.stderr)
+        raise SystemExit(EXIT_CONFIG)
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     disable_quick_edit()
-    ap = argparse.ArgumentParser(description="ppt-builder v%s：把材料提炼为可溯源、经核验的 PPT 内容" % VERSION)
+    ap = _ArgParser(description="ppt-builder v%s：把材料提炼为可溯源、经核验的 PPT 内容" % VERSION)
     ap.add_argument("--config", help="配置文件路径（默认技能目录下 config.yaml）")
     ap.add_argument("--version", action="version", version="ppt-builder %s" % VERSION)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -309,6 +324,8 @@ def main(argv=None):
     p = sub.add_parser("eval-summary", help="汇总多个工作目录的评测结果")
     p.add_argument("--workdirs", nargs="+", required=True)
     p.add_argument("--out", required=True)
+    p = sub.add_parser("jobs", help="列出待智能体作答的 job（provider: agent）")
+    p.add_argument("--workdir", required=True)
     a = ap.parse_args(argv)
 
     t0 = now_iso()
@@ -320,13 +337,21 @@ def main(argv=None):
         return e.code
     try:
         if a.cmd == "ping":
-            from ppt_content.llm import LLM
+            from ppt_content.llm import make_llm
             wd = Workdir(a.workdir or os.path.join(os.getcwd(), ".pptc_check"))
             os.makedirs(wd.root, exist_ok=True)
             log = RunLogger(wd, cfg, "ping")
             log.stage = "ping"
             write_environment(wd, cfg)
-            llm = LLM(cfg, log)
+            if (cfg.get("llm") or {}).get("provider") == "agent":
+                prof = {t: (cfg["llm"].get("tasks") or {}).get(t) for t in (cfg["llm"].get("tasks") or {})}
+                emit(True, EXIT_OK, "ping",
+                     {"provider": "agent", "network": "none", "needs_api_key": False,
+                      "profiles_by_task": prof,
+                      "note": "provider=agent：模型输出由会话里的智能体按 job 文件作答，不联网、不需要 API Key"},
+                     "运行 init 开始")
+                return EXIT_OK
+            llm = make_llm(cfg, log)
             r = llm.call_json("ping", {}, target="ping")
             prof = {t: llm.profile_for(t)["model"] for t in cfg["llm"]["tasks"]}
             emit(r["ok"], EXIT_OK if r["ok"] else EXIT_ERROR, "ping",
@@ -359,8 +384,24 @@ def main(argv=None):
         log = RunLogger(wd, cfg, a.cmd)
         if a.cmd == "status":
             info = cmd_status(wd)
+            if (cfg.get("llm") or {}).get("provider") == "agent":
+                try:
+                    from ppt_content.agent_channel import AgentLLM
+                    pend = AgentLLM(cfg, log).pending_jobs()
+                    info["pending_jobs"] = len(pend)
+                    if pend:
+                        info["hint"] = "有 %d 个 job 待作答（运行 jobs 查看）" % len(pend)
+                except Exception:      # noqa  状态命令不能因为统计失败而失败
+                    pass
             emit(True, EXIT_OK, "status", info, info.get("hint"))
             return EXIT_OK
+        if a.cmd == "jobs":
+            from ppt_content.agent_channel import AgentLLM
+            pend = AgentLLM(cfg, log).pending_jobs()
+            emit(True, EXIT_OK if not pend else EXIT_NEED_MODEL, "jobs",
+                 {"provider": (cfg.get("llm") or {}).get("provider"), "pending": len(pend), "jobs": pend},
+                 "读 job 的 instructions，把答案写到 answer_path，然后运行 run" if pend else "没有待作答的 job")
+            return EXIT_OK if not pend else EXIT_NEED_MODEL
         if a.cmd == "report":
             from ppt_content.reports import run_report
             f = run_report(wd)
@@ -372,20 +413,20 @@ def main(argv=None):
             emit(True, EXIT_OK, "bundle", {"bytes": os.path.getsize(f)}, files=[f])
             return EXIT_OK
         if a.cmd == "eval":
-            from ppt_content.llm import LLM
+            from ppt_content.llm import make_llm
             from ppt_content.reports import evaluate
             log.stage = "eval"
-            r = evaluate(wd, a.gold, LLM(cfg, log), log)
+            r = evaluate(wd, a.gold, make_llm(cfg, log), log)
             emit(True, EXIT_OK, "eval", r, files=[wd.p("eval_result.json")])
             return EXIT_OK
         wd.brief()
         write_environment(wd, cfg)
         if a.cmd == "speech":
             from ppt_content.visual import design as vdesign
-            from ppt_content.llm import LLM
+            from ppt_content.llm import make_llm
             wd.require("design")
             log.stage = "speech"
-            summary = vdesign.run_speech(wd, cfg, log, LLM(cfg, log))
+            summary = vdesign.run_speech(wd, cfg, log, make_llm(cfg, log))
             st = wd.state()
             if st["stages"].get("render", {}).get("status") == "done":
                 wd.set_stage("design", "done", summary=st["stages"]["design"].get("summary"))   # 让 render 过期，run 时重新生成 PPT
@@ -394,10 +435,10 @@ def main(argv=None):
             return EXIT_OK
         if a.cmd == "frame":
             from ppt_content import frame
-            from ppt_content.llm import LLM
+            from ppt_content.llm import make_llm
             wd.require("understand")
             log.stage = "frame"
-            summary = frame.run(wd, cfg, log, LLM(cfg, log))
+            summary = frame.run(wd, cfg, log, make_llm(cfg, log))
             log.invocation(argv, EXIT_OK, t0)
             emit(True, EXIT_OK, "frame", summary, "把 03_plan/frame.md 交给用户查看", [wd.stage("plan", "frame.md"),
                                                                                  wd.stage("plan", "frame.json")])
@@ -447,6 +488,15 @@ def main(argv=None):
         log.invocation(argv, EXIT_OK, t0)
         emit(True, EXIT_OK, a.cmd, summary, NEXT_HINT.get(a.cmd))
         return EXIT_OK
+    except NeedModel as e:
+        if log:
+            log.info("need_model", str(e), jobs=[j.get("job_path") for j in e.jobs])
+            log.invocation(argv, EXIT_NEED_MODEL, t0)
+        emit(False, EXIT_NEED_MODEL, a.cmd,
+             {"pending": len(e.jobs), "jobs": e.jobs},
+             "需要智能体作答：按 job 的 instructions 写 answer_path，然后重跑同一条命令",
+             files=e.files)
+        return EXIT_NEED_MODEL
     except NeedUser as e:
         if log:
             log.info("need_user", str(e), files=e.files)
