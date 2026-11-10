@@ -255,7 +255,13 @@ class AgentLLM:
         return "%s|%s|%s" % (task, target, vote)
 
     def _read_index(self):
-        d = read_json(self.index_file) or {}
+        """读索引：文件不存在或损坏返回 None（触发重建）；存在但为空返回 {}（表示当前无待作答）。"""
+        if not os.path.exists(self.index_file):
+            return None
+        try:
+            d = read_json(self.index_file) or {}
+        except Exception:          # 索引被写坏（外部改坏/非原子写）：当缺失处理，重建
+            return None
         return d.get("entries") or {}
 
     def _set_pending(self, task, target, vote, job_id, attempt):
@@ -265,14 +271,14 @@ class AgentLLM:
         以最后写入的为准，不靠文件名或 attempt 猜测（N1）。
         """
         with self._job_lock:
-            entries = self._read_index()
+            entries = self._read_index() or {}
             entries[self._key(task, target, vote)] = {"job_id": job_id, "attempt": attempt,
                                                       "updated_at": now_iso()}
             write_json(self.index_file, {"entries": entries})
 
     def _clear_pending(self, task, target, vote):
         with self._job_lock:
-            entries = self._read_index()
+            entries = self._read_index() or {}
             if self._key(task, target, vote) in entries:
                 del entries[self._key(task, target, vote)]
                 write_json(self.index_file, {"entries": entries})
@@ -326,11 +332,12 @@ class AgentLLM:
         变化时，不会把旧 job 误当成最新的（N1）；过期的旧 attempt 也不会永久挂着（N2）。
         """
         entries = self._read_index()
-        if not entries and os.path.isdir(self.jobs_dir):
+        if entries is None and os.path.isdir(self.jobs_dir):
             try:
-                entries = self._rebuild_index()  # 旧工作目录（升级前进来的）没有索引：按 created_at 取最新
+                entries = self._rebuild_index()  # 索引缺失/损坏（含升级前的工作目录）：按 created_at 重建
             except Exception:                    # noqa  只读目录等：退化为“没有待作答”
                 entries = {}
+        entries = entries or {}
         out = []
         for key, rec in entries.items():
             job_id = rec.get("job_id")

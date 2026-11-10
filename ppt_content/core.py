@@ -100,6 +100,14 @@ def _default_file_mode():
     return 0o666 & ~_UMASK
 
 
+def _chmod(path, mode):
+    """跨平台改权限：os.fchmod 只在 Unix 存在（Windows 上改为 os.chmod，仅只读位生效，不会崩）。"""
+    try:
+        os.chmod(path, mode)
+    except (OSError, AttributeError):
+        pass
+
+
 def write_json(path, obj):
     """原子写：临时文件用 mkstemp（同目录、唯一名），再 os.replace。
 
@@ -111,7 +119,7 @@ def write_json(path, obj):
     os.makedirs(d, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=os.path.basename(path) + ".", suffix=".tmp", dir=d)
     try:
-        os.fchmod(fd, _default_file_mode())      # mkstemp 是 0600，恢复成按 umask 的常规权限（N7）
+        _chmod(tmp, _default_file_mode())        # mkstemp 是 0600，恢复成按 umask 的常规权限（N7）
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(obj, f, ensure_ascii=False, indent=2)
         os.replace(tmp, path)

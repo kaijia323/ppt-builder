@@ -375,7 +375,14 @@ def main(argv=None):
         if not os.path.exists(wd.p("brief.json")):
             if os.path.exists(os.path.join(wd.top, "注意事项.md")) and \
                     any(f.lower().endswith(".pptx") for f in os.listdir(wd.top)):
-                if a.cmd == "status":       # 已交付：状态查询应正常返回“完成”，不要当作配置错误
+                if a.cmd in ("status", "jobs"):   # 已交付：状态/待办查询应正常返回“完成”，不要当作配置错误
+                    if a.cmd == "jobs":
+                        emit(True, EXIT_OK, "jobs",
+                             {"finished": True, "cleanup": True, "pending": 0, "jobs": []},
+                             "已确认完成、过程文件已清理；没有待作答的 job",
+                             files=[os.path.join(wd.top, f) for f in sorted(os.listdir(wd.top))
+                                    if f.lower().endswith(".pptx") or f == "注意事项.md"])
+                        return EXIT_OK
                     info = {"stages": {x: "done" for x in STAGES}, "finished": True, "cleanup": True,
                             "files": [f for f in sorted(os.listdir(wd.top))
                                       if f.lower().endswith(".pptx") or f == "注意事项.md"],
